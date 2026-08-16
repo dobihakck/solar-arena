@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Solar Arena</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #050714;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Roboto', sans-serif;
+    }
+    #game { width: 100vw; height: 100vh; }
+    #mute-btn {
+      position: fixed; top: 12px; right: 12px; z-index: 100;
+      width: 36px; height: 36px;
+      background: rgba(10, 14, 39, 0.8);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      border-radius: 6px;
+      color: #00d4ff; font-size: 16px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.2s;
+    }
+    #mute-btn:hover { border-color: #00d4ff; }
+  </style>
+</head>
+<body oncontextmenu="return false">
+  <div id="game"></div>
+  <button id="mute-btn" title="Звук">🔊</button>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
