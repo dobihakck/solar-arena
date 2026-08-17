@@ -7,7 +7,7 @@ export class BootScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Один спрайт-лист: 5 кадров по 32x32
+    // Один спрайт-лист: 5 кадров по 64x91
     this.load.spritesheet(
       "player_sheet",
       "assets/sprites/player.png",
@@ -49,10 +49,10 @@ export class BootScene extends Phaser.Scene {
         frames: [
           {
             key: "player_sheet",
-            frame: 0,
+            frame: 2,
           },
         ],
-        frameRate: 1,
+        frameRate: 2,
         repeat: -1,
       });
     }
@@ -70,8 +70,8 @@ export class BootScene extends Phaser.Scene {
             frame: 2,
           },
         ],
-        frameRate: 8,
-        repeat: -1,
+        frameRate: 6,
+        repeat: -2,
       });
     }
 
@@ -81,11 +81,11 @@ export class BootScene extends Phaser.Scene {
         frames: [
           {
             key: "player_sheet",
-            frame: 3,
+            frame: 1,
           },
           {
             key: "player_sheet",
-            frame: 4,
+            frame: 2,
           },
         ],
         frameRate: 6,

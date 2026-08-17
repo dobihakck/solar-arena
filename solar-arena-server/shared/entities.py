@@ -55,8 +55,8 @@ class Player(Entity):
     angle: float = 0.0
     resources_held: dict = field(default_factory=dict)
     respawn_timer: float = 0.0
-    entity_type: str = "player"
     current_planet: str = "Earth"
+    entity_type: str = "player"
 
     def to_dict(self) -> dict:
         d = super().to_dict()

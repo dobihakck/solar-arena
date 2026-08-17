@@ -194,36 +194,89 @@ class GameServer:
 
     async def _broadcast_updates(self) -> None:
         updates_by_planet: dict[str, list[dict]] = {}
-        for entity in self.world.entities.values():
-            if entity.dirty:
-                entity_dict = entity.to_dict()
-                planet_name = None
-                if entity.entity_type in ("player", "ai_bot"):
-                    planet_name = getattr(entity, "current_planet", None)
-                elif entity.entity_type == "projectile":
-                    owner = self.world.get_entity(entity.owner_id)
-                    planet_name = getattr(owner, "current_planet", None) if owner else None
 
-                if planet_name:
-                    if planet_name not in updates_by_planet:
-                        updates_by_planet[planet_name] = []
-                    updates_by_planet[planet_name].append(entity_dict)
-                entity.dirty = False
+        for entity in list(self.world.entities.values()):
+            if not entity.dirty:
+                continue
 
-        despawns = getattr(self, "_tick_despawns", [])
-        events = getattr(self, "_tick_resource_events", [])
-        tiles = self.new_destroyed_tiles
-        self.new_destroyed_tiles = []
+            entity_data = entity.to_dict()
+            planet_name = None
 
-        for session_id, session in self.sessions.sessions.items():
+            if entity.entity_type in ("player", "ai_bot"):
+                planet_name = getattr(
+                    entity,
+                    "current_planet",
+                    None,
+                )
+
+            elif entity.entity_type == "projectile":
+                owner = self.world.get_entity(
+                    entity.owner_id,
+                )
+
+                if owner:
+                    planet_name = getattr(
+                        owner,
+                        "current_planet",
+                        None,
+                    )
+
+            if planet_name:
+                updates_by_planet.setdefault(
+                    planet_name,
+                    [],
+                ).append(entity_data)
+
+            entity.dirty = False
+
+        despawns = getattr(
+            self,
+            "_tick_despawns",
+            [],
+        )
+
+        events = getattr(
+            self,
+            "_tick_resource_events",
+            [],
+        )
+
+        tiles = list(self.new_destroyed_tiles)
+        self.new_destroyed_tiles.clear()
+
+        # ВАЖНО:
+        # list(...) создаёт копию словаря сессий.
+        # Поэтому удаление игрока во время await не ломает цикл.
+        sessions_snapshot = list(
+            self.sessions.sessions.items()
+        )
+
+        for session_id, session in sessions_snapshot:
             player = self.world.players.get(session_id)
+
             if not player:
                 continue
 
-            player_planet = player.current_planet
-            planet_updates = updates_by_planet.get(player_planet, [])
+            player_planet = getattr(
+                player,
+                "current_planet",
+                None,
+            )
 
-            if planet_updates or despawns or events or tiles:
+            planet_updates = updates_by_planet.get(
+                player_planet,
+                [],
+            )
+
+            if not (
+                planet_updates
+                or despawns
+                or events
+                or tiles
+            ):
+                continue
+
+            try:
                 await session.send({
                     "type": "world_update",
                     "data": {
@@ -231,6 +284,11 @@ class GameServer:
                         "updates": planet_updates,
                         "despawns": despawns,
                         "events": events,
-                        "tiles_destroyed": tiles
-                    }
+                        "tiles_destroyed": tiles,
+                    },
                 })
+            except Exception as error:
+                print(
+                    f"Ошибка отправки игроку "
+                    f"{session_id}: {error}"
+                )

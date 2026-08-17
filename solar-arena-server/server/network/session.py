@@ -38,16 +38,31 @@ class SessionManager:
 
     async def broadcast(self, message: dict) -> None:
         raw = json.dumps(message)
-        dead = []
-        for session in self.sessions.values():
-            if session.connected:
-                try:
-                    await session.ws.send(raw)
-                except websockets.ConnectionClosed:
-                    session.connected = False
-                    dead.append(session.player_id)
-        for pid in dead:
-            self.sessions.pop(pid, None)
+        dead_ids: list[int] = []
+
+        for session in list(self.sessions.sessions.values()):
+            if not session.connected:
+                dead_ids.append(session.player_id)
+                continue
+
+            try:
+                await session.ws.send(raw)
+            except websockets.ConnectionClosed:
+                session.connected = False
+                dead_ids.append(session.player_id)
+            except Exception as error:
+                print(
+                    f"Ошибка отправки игроку "
+                    f"{session.player_id}: {error}"
+                )
+                session.connected = False
+                dead_ids.append(session.player_id)
+
+        for player_id in dead_ids:
+            self.sessions.sessions.pop(
+                player_id,
+                None,
+            )
 
     @property
     def count(self) -> int:

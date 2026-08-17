@@ -53,32 +53,59 @@ export class RemoteEntityManager {
     if (data.my_entity_id !== undefined) {
       this.setMyEntityId(data.my_entity_id);
     }
-    for (const ent of data.entities || []) {
-      if (ent.id === this.myEntityId) continue;
-      if (ent.type === "planet") continue;
-      // Фильтруем по планете
-      if (ent.planet && this.myPlanet && ent.planet !== this.myPlanet) continue;
-      this.createEntity(ent);
+
+    for (const entity of data.entities ?? []) {
+      if (entity.id === this.myEntityId) {
+        continue;
+      }
+
+      if (entity.type === "planet") {
+        continue;
+      }
+
+      if (
+        entity.planet &&
+        this.myPlanet &&
+        entity.planet !== this.myPlanet
+      ) {
+        continue;
+      }
+
+      this.createEntity(entity);
     }
   }
 
   applyUpdate(data: any): void {
-    for (const ent of data.updates || []) {
-      if (ent.id === this.myEntityId) continue;
-      if (ent.type === "planet") continue;
-      // Фильтруем по планете
-      if (ent.planet && this.myPlanet && ent.planet !== this.myPlanet) continue;
+    for (const entity of data.updates ?? []) {
+      if (entity.id === this.myEntityId) {
+        continue;
+      }
 
-      const existing = this.entities.get(ent.id);
+      if (entity.type === "planet") {
+        continue;
+      }
+
+      if (
+        entity.planet &&
+        this.myPlanet &&
+        entity.planet !== this.myPlanet
+      ) {
+        continue;
+      }
+
+      const existing = this.entities.get(entity.id);
+
       if (existing) {
-        this.updateEntity(existing, ent);
+        this.updateEntity(existing, entity);
       } else {
-        this.createEntity(ent);
+        this.createEntity(entity);
       }
     }
-    for (const id of data.despawns || []) {
-      if (id === this.myEntityId) continue;
-      this.removeEntity(id);
+
+    for (const id of data.despawns ?? []) {
+      if (id !== this.myEntityId) {
+        this.removeEntity(id);
+      }
     }
   }
 

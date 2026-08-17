@@ -1,4 +1,34 @@
 """Игровой мир — все сущности, планеты, состояние."""
+
+TILE_SIZE = 28
+
+PLANET_GEOMETRY = {
+    "Mercury": {
+        "world_width": 200,
+        "surface_level": 25,
+    },
+    "Venus": {
+        "world_width": 220,
+        "surface_level": 25,
+    },
+    "Earth": {
+        "world_width": 250,
+        "surface_level": 25,
+    },
+    "Mars": {
+        "world_width": 200,
+        "surface_level": 25,
+    },
+    "Jupiter": {
+        "world_width": 180,
+        "surface_level": 20,
+    },
+    "Saturn": {
+        "world_width": 180,
+        "surface_level": 20,
+    },
+}
+
 import random
 from shared.entities import Entity, Planet, Player, AIBot, Projectile
 from shared.constants import (
@@ -45,10 +75,27 @@ class World:
 
         for name, x, y, radius, resources in planet_data:
             pid = self.generate_id()
+            geometry = PLANET_GEOMETRY[name]
+
+            local_world_width = geometry["world_width"] * TILE_SIZE
+            local_surface_y = geometry["surface_level"] * TILE_SIZE
+
             planet = Planet(
-                id=pid, x=x, y=y, radius=radius,
-                name=name, resources=dict(resources),
-                regen_rate={k: v * 0.1 for k, v in resources.items()},
+                id=pid,
+
+                # Центр локальной карты планеты
+                x=local_world_width / 2,
+
+                # Уровень поверхности локальной карты
+                y=local_surface_y,
+
+                radius=radius,
+                name=name,
+                resources=dict(resources),
+                regen_rate={
+                    key: value * 0.1
+                    for key, value in resources.items()
+                },
                 owner_faction=name,
             )
             self.planets[pid] = planet
@@ -59,37 +106,56 @@ class World:
 
     def _spawn_bot(self, planet: Planet) -> AIBot:
         bot_id = self.generate_id()
+
         bot = AIBot(
             id=bot_id,
-            x=planet.x + random.uniform(-40, 40),
-            y=planet.y + random.uniform(-40, 40),
-            name=f"Bot-{bot_id}",
-            faction=planet.name,
-            radius=BOT_RADIUS,
-            hp=PLAYER_SPAWN_HP,
-            max_hp=PLAYER_SPAWN_HP,
-            home_planet_id=planet.id,
-            behavior_state="gather",
-            current_planet=planet.name,  # ← ДОБАВИТЬ
-        )
+
+        # Боты появляются около центра локальной карты
+        x=planet.x + random.uniform(-160, 160),
+
+        # Немного выше поверхности
+        y=planet.y - BOT_RADIUS - 4,
+
+        name=f"Bot-{bot_id}",
+        faction=planet.name,
+        current_planet=planet.name,
+
+        radius=BOT_RADIUS,
+        hp=PLAYER_SPAWN_HP,
+        max_hp=PLAYER_SPAWN_HP,
+
+        home_planet_id=planet.id,
+        behavior_state="gather",
+    )
+
         self.bots[bot_id] = bot
         self.add_entity(bot)
         return bot
 
-    def spawn_player(self, player_id: int, name: str, faction: str) -> Player:
+    def spawn_player(
+        self,
+        player_id: int,
+        name: str,
+        faction: str,
+    ) -> Player:
         planet = self._find_spawn_planet(faction)
+
         player = Player(
             id=player_id,
-            x=planet.x + random.uniform(20, 50),
-            y=planet.y + random.uniform(20, 50),
+
+            x=planet.x + random.uniform(-80, 80),
+            y=planet.y - PLAYER_RADIUS - 4,
+
             name=name,
             faction=faction,
+            current_planet=planet.name,
+
             radius=PLAYER_RADIUS,
             hp=PLAYER_SPAWN_HP,
             max_hp=PLAYER_SPAWN_HP,
             current_weapon="laser_rifle",
-            current_planet=planet.name,  # ← ДОБАВИТЬ
         )
+
         self.players[player_id] = player
         self.add_entity(player)
         return player

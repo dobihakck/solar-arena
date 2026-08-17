@@ -32,10 +32,11 @@ export class GameScene extends Phaser.Scene {
   private groundLayer!: Phaser.Tilemaps.TilemapLayer;
 
   private player!: Phaser.Physics.Arcade.Sprite;
-  private playerVisual!: Phaser.GameObjects.Sprite;
+  private currentAnim = "";
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: WasdKeys;
   private shiftKey!: Phaser.Input.Keyboard.Key;
+  private currentAnim: string = "player_idle"; // Добавьте это поле в класс
 
   private network!: NetworkClient;
   private remoteEntities!: RemoteEntityManager;
@@ -54,13 +55,6 @@ export class GameScene extends Phaser.Scene {
   private readonly sendInterval = 0.05;
 
   /**
-   * Размер игрока на экране.
-   * Исходный кадр PNG: 64x64.
-   */
-  private readonly playerWidth = 32;
-  private readonly playerHeight = 46;
-
-  /**
    * Блоки, которые уже были удалены локально.
    */
   private destroyedTiles = new Set<string>();
@@ -70,8 +64,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   init(data: { planet?: string }): void {
-    this.planet =
-      getPlanetByName(data?.planet ?? "") ?? PLANETS[2];
+    this.planet = getPlanetByName(data?.planet ?? "") ?? PLANETS[2];
 
     this.inventory = {};
     this.miningTarget = null;
@@ -154,74 +147,87 @@ export class GameScene extends Phaser.Scene {
     // Находим поверхность
     // --- Создание игрока ---
 
-    const spawnX = Math.floor(mapWidth / 2);
-    const surfaceTileY = this.findSurfaceY(worldData, spawnX);
+    // --- Создание игрока ---
 
-    const groundTopY = surfaceTileY * TILE_SIZE;
+  const spawnX = Math.floor(mapWidth / 2);
+  const surfaceTileY = this.findSurfaceY(worldData, spawnX);
 
-    // Размер отображения персонажа.
-    // Исходный кадр PNG: 64x91.
-    const PLAYER_WIDTH = 32;
-    const PLAYER_HEIGHT = 40;
+  const groundTopY = surfaceTileY * TILE_SIZE;
 
-    // Создаём игрока немного выше поверхности.
-    // Физика сама опустит его на блок.
-    const spawnXPixel =
-      spawnX * TILE_SIZE + TILE_SIZE / 2;
+  // Исходный кадр в PNG: 64x91.
+  // Реальный размер персонажа на экране: 32x40.
+  const PLAYER_WIDTH = 32;
+  const PLAYER_HEIGHT = 40;
 
-    const spawnYPixel =
-      groundTopY - PLAYER_HEIGHT / 2 - 20;
+  // Спрайт создаётся немного над поверхностью.
+  // После запуска физика плавно поставит его на землю.
+  const spawnXPixel =
+    spawnX * TILE_SIZE + TILE_SIZE / 2;
 
-    this.player = this.physics.add.sprite(
-      spawnXPixel,
-      spawnYPixel,
-      "player_sheet",
-      0,
-    );
+  const spawnYPixel =
+    groundTopY - PLAYER_HEIGHT / 2 - 4;
 
-    this.player.setOrigin(0.5, 0.5);
-    this.player.setDisplaySize(
-      PLAYER_WIDTH,
-      PLAYER_HEIGHT,
-    );
+  this.player = this.physics.add.sprite(
+    spawnXPixel,
+    spawnYPixel,
+    "player_sheet",
+    0,
+  );
 
-    this.player.setBounce(0);
-    this.player.setCollideWorldBounds(true);
+  this.player.setOrigin(0.5, 0.5);
 
-    // Тело коллизии чуть уже персонажа,
-    // но касается его нижней границы.
-    const body =
-      this.player.body as Phaser.Physics.Arcade.Body;
+  this.player.setDisplaySize(
+    PLAYER_WIDTH,
+    PLAYER_HEIGHT,
+  );
 
-    const COLLISION_WIDTH = 20;
-    const COLLISION_HEIGHT = 36;
+  this.player.setBounce(0);
+  this.player.setCollideWorldBounds(true);
 
-    body.setSize(
-      COLLISION_WIDTH,
-      COLLISION_HEIGHT,
-      false,
-    );
+  const body =
+    this.player.body as Phaser.Physics.Arcade.Body;
 
-    // Центрируем тело по горизонтали.
-    // По вертикали ставим его к нижней части спрайта.
-    body.setOffset(
-      (PLAYER_WIDTH - COLLISION_WIDTH) / 2,
-      PLAYER_HEIGHT - COLLISION_HEIGHT,
-    );
+  /*
+    ВАЖНО:
 
-    body.updateFromGameObject();
+    Исходный кадр: 64x91.
+    Его отображение: 32x40.
 
-    // Коллизия с землёй
-    this.physics.add.collider(
-      this.player,
-      this.groundLayer,
-    );
+    Phaser применяет масштаб к телу.
+    Поэтому задаём размеры в координатах исходного кадра:
 
-    // Начальная анимация
-    this.player.play(
-      "player_idle",
-      true,
-    );
+    40 x 82 после масштабирования ≈ 20 x 36 пикселей на экране.
+  */
+  const BODY_SOURCE_WIDTH = 40;
+  const BODY_SOURCE_HEIGHT = 82;
+
+  // Смещение физического тела в исходных координатах кадра.
+  // Тело стоит внизу спрайта: его нижняя граница совпадает с ногами.
+  const BODY_OFFSET_X = 12;
+  const BODY_OFFSET_Y = 10;
+
+  body.setSize(
+    BODY_SOURCE_WIDTH,
+    BODY_SOURCE_HEIGHT,
+    false,
+  );
+
+  body.setOffset(
+    BODY_OFFSET_X,
+    BODY_OFFSET_Y,
+  );
+
+  body.updateFromGameObject();
+
+  this.physics.add.collider(
+    this.player,
+    this.groundLayer,
+  );
+
+  this.player.play(
+    "player_idle",
+    true,
+  );
 
     // Камера
     this.cameras.main.startFollow(
@@ -408,7 +414,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updatePlayerMovement(): void {
-    const speed = 180;
+    const speed = 130;
     let velocityX = 0;
 
     if (
@@ -434,24 +440,19 @@ export class GameScene extends Phaser.Scene {
       body.blocked.down ||
       body.touching.down;
 
+    let nextAnimation = "player_idle";
+
     if (!isOnGround) {
-      this.player.play(
-        "player_jump",
-        true,
-      );
+      nextAnimation = "player_jump";
     } else if (velocityX !== 0) {
-      this.player.play(
-        "player_walk",
-        true,
-      );
-    } else {
-      this.player.play(
-        "player_idle",
-        true,
-      );
+      nextAnimation = "player_walk";
     }
 
-    // Разворот персонажа
+    if (this.currentAnim !== nextAnimation) {
+      this.player.play(nextAnimation, true);
+      this.currentAnim = nextAnimation;
+    }
+
     if (velocityX < 0) {
       this.player.setFlipX(true);
     } else if (velocityX > 0) {

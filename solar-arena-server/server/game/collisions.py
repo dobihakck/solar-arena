@@ -6,6 +6,28 @@ from shared.constants import CHUNK_SIZE
 
 class CollisionSystem:
 
+    def _get_space_name(self, world, entity) -> str | None:
+        if entity.entity_type == "planet":
+            return entity.name
+
+        if entity.entity_type == "projectile":
+            owner = world.get_entity(entity.owner_id)
+
+            if owner:
+                return getattr(
+                    owner,
+                    "current_planet",
+                    None,
+                )
+
+            return None
+
+        return getattr(
+            entity,
+            "current_planet",
+            None,
+        )
+
     def __init__(self, chunk_size: int = CHUNK_SIZE):
         self.chunk_size = chunk_size
         self.grid: dict[tuple[int, int], list[int]] = defaultdict(list)
@@ -55,6 +77,7 @@ class CollisionSystem:
     def _check_pair(self, world: World, id1: int, id2: int) -> None:
         e1 = world.get_entity(id1)
         e2 = world.get_entity(id2)
+
         if not e1 or not e2:
             return
 
